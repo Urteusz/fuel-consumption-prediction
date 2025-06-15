@@ -62,9 +62,9 @@ def fuel_consumption_prediction(origin_option=0, split=0.2, random=42, test_dept
             feature_importance_df = pd.DataFrame({'Cecha': X.columns, 'Ważność': importances})
             feature_importance_df = feature_importance_df.sort_values(by='Ważność', ascending=False)
 
-            # print(f"\n--- Ważność Cech dla max_depth={depth} ---")
-            # print(feature_importance_df)
-            # print("----------------------")
+            print(f"\n--- Ważność Cech dla max_depth={depth} ---")
+            print(feature_importance_df)
+            print("----------------------")
 
         # Wykres porównawczy MAE
         depth_labels = [d[0] for d in mae_results]
@@ -166,8 +166,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # main()
-    test_training = [0.1, 0.2, 0.3]
-    for split in test_training:
-        print(f"\n--- Test z podziałem {split} ---")
-        fuel_consumption_prediction(origin_option=0, split=split, random=42, test_depth=True)
+    main()
