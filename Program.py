@@ -10,66 +10,69 @@ def fuel_consumption_prediction(is_origin=0, split=0.2, random=42):
     sns.set_style('whitegrid')
     plt.rcParams['figure.figsize'] = (12, 6)
 
-    # Wczytanie i wstępna analiza danych
-    column_names = ['mpg', 'cylinders', 'displacement', 'horsepower', 'weight', 'acceleration', 'model_year', 'origin', 'car_name']
+    # Wczytanie danych
+    column_names = ['mpg', 'cylinders', 'displacement', 'horsepower', 'weight',
+                    'acceleration', 'model_year', 'origin', 'car_name']
     url = 'auto-mpg.data'
-    df = pd.read_csv(url, names=column_names, na_values='?', comment='\t', sep=' ', skipinitialspace=True)
+    df = pd.read_csv(url, names=column_names, na_values='?', comment='\t',
+                     sep=' ', skipinitialspace=True)
 
-    # Wzór: L/100km = 235.214 / MPG
     df['l_per_100km'] = 235.214583 / df['mpg']
-    df = df.drop('mpg', axis=1)
-    # Wzór: 1 funt = 0.453592 kg
     df['weight'] = df['weight'] * 0.453592
-
-    # Usunięcie niepotrzebnej kolumny z nazwą samochodu
-    df = df.drop('car_name', axis=1)
-
-    # Usuwamy rekordy z brakującymi wartościami w kolumnie 'horsepower' tylko 6 rekordów
+    df = df.drop(['mpg', 'car_name'], axis=1)
     df = df.dropna(subset=['horsepower'])
 
     if is_origin == 1:
-        # Kodowanie zmiennej kategorialnej 'origin' (One-Hot Encoding) Wyniki gorsze niż usunięcie kolumny 'origin'
         df['origin'] = df['origin'].map({1: 'USA', 2: 'Europe', 3: 'Japan'})
         df = pd.get_dummies(df, columns=['origin'], prefix='', prefix_sep='')
     else:
-        # Usunięcie kolumny 'origin' daje lepsze wyniki niż jej kodowanie
         df = df.drop('origin', axis=1)
 
-    # Podział na zbiór cech (X) i cel (y)
-    # Teraz naszą zmienną docelową jest 'l_per_100km'
     X = df.drop('l_per_100km', axis=1)
     y = df['l_per_100km']
-
-    # Podział na zbiór treningowy i testowy (80/20)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=split, random_state=random)
+
     print(f"\nRozmiar zbioru treningowego: {X_train.shape[0]} próbek")
     print(f"Rozmiar zbioru testowego: {X_test.shape[0]} próbek")
 
-    # Budowa i trenowanie modelu drzewa decyzyjnego
-    dt_regressor = DecisionTreeRegressor(random_state=random)
-    dt_regressor.fit(X_train, y_train)
+    # Testowane głębokości
+    depths = [1, 2, 3, 5, 10, None]
+    mae_results = []
 
-    # Ewaluacja modelu
-    y_pred = dt_regressor.predict(X_test)
+    print("\n--- Porównanie MAE dla różnych głębokości drzewa ---")
+    for depth in depths:
+        dt = DecisionTreeRegressor(max_depth=depth, random_state=random)
+        dt.fit(X_train, y_train)
+        y_pred = dt.predict(X_test)
+        mae = mean_absolute_error(y_test, y_pred)
+        mae_results.append((str(depth), mae))
+        print(f"max_depth = {depth}: MAE = {mae:.2f} L/100km")
+    print("-----------------------------------------------------")
 
-    # Obliczenie metryk
-    mae = mean_absolute_error(y_test, y_pred)
+    # Wykres porównawczy MAE
+    depth_labels = [d[0] for d in mae_results]
+    mae_values = [d[1] for d in mae_results]
 
-    print("\n--- Metryki Ewaluacji Modelu (Cel: L/100km) ---")
-    print(f"Średni błąd bezwzględny (MAE): {mae:.2f} L/100km")
-    print("-------------------------------------------------")
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x=depth_labels, y=mae_values)
+    plt.title('Porównanie MAE dla różnych głębokości drzewa decyzyjnego')
+    plt.xlabel('Maksymalna głębokość drzewa')
+    plt.ylabel('MAE [L/100km]')
+    plt.show()
 
-    # Wizualizacja drzewa (wersja uproszczona dla czytelności)
+    # Wizualizacja uproszczonego drzewa
     plt.figure(figsize=(20, 10))
     simple_tree = DecisionTreeRegressor(max_depth=3, random_state=random)
     simple_tree.fit(X_train, y_train)
-    # W liściach drzewa (value) będzie teraz przewidywane spalanie w L/100km
-    plot_tree(simple_tree, feature_names=X.columns, filled=True, rounded=True, fontsize=10, precision=2)
-    plt.title("Wizualizacja drzewa decyzyjnego (predykcja L/100km, max_depth=3)", fontsize=16)
+    plot_tree(simple_tree, feature_names=X.columns, filled=True,
+              rounded=True, fontsize=10, precision=2)
+    plt.title("Wizualizacja drzewa decyzyjnego (max_depth=3)", fontsize=16)
     plt.show()
 
-    # Ważność cech (Feature Importance)
-    importances = dt_regressor.feature_importances_
+    # Ważność cech
+    final_tree = DecisionTreeRegressor(random_state=random)
+    final_tree.fit(X_train, y_train)
+    importances = final_tree.feature_importances_
     feature_importance_df = pd.DataFrame({'Cecha': X.columns, 'Ważność': importances})
     feature_importance_df = feature_importance_df.sort_values(by='Ważność', ascending=False)
 
