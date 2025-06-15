@@ -6,7 +6,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeRegressor, plot_tree
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-def fuel_consumption_prediction(is_origin=0, split=0.2, random=42, test_depth=False):
+
+def fuel_consumption_prediction(origin_option=0, split=0.2, random=42, test_depth=False, max_depth=None):
     sns.set_style('whitegrid')
     plt.rcParams['figure.figsize'] = (12, 6)
 
@@ -22,11 +23,18 @@ def fuel_consumption_prediction(is_origin=0, split=0.2, random=42, test_depth=Fa
     df = df.drop(['mpg', 'car_name'], axis=1)
     df = df.dropna(subset=['horsepower'])
 
-    if is_origin == 1:
+    if origin_option == 0:
+        # Usuń kolumnę 'origin'
+        df = df.drop('origin', axis=1)
+        origin_desc = "bez kolumny 'origin'"
+    elif origin_option == 1:
+        # Zostaw kolumnę 'origin' jako numeryczną (1, 2, 3)
+        origin_desc = "z kolumną 'origin' jako numeryczną"
+    else:
+        # One-Hot Encoding kolumny 'origin'
         df['origin'] = df['origin'].map({1: 'USA', 2: 'Europe', 3: 'Japan'})
         df = pd.get_dummies(df, columns=['origin'], prefix='', prefix_sep='')
-    else:
-        df = df.drop('origin', axis=1)
+        origin_desc = "z kolumną 'origin' jako One-Hot Encoding"
 
     X = df.drop('l_per_100km', axis=1)
     y = df['l_per_100km']
@@ -36,8 +44,8 @@ def fuel_consumption_prediction(is_origin=0, split=0.2, random=42, test_depth=Fa
     print(f"Rozmiar zbioru testowego: {X_test.shape[0]} próbek")
 
     if test_depth:
-        # Testowane głębokości
-        depths = [1, 2, 3, 5, 10, None]
+        # Testowanie różnych głębokości
+        depths = [1, 2, 3, 4, 5, 6, 7, 8, 10, None]
         mae_results = []
 
         print("\n--- Porównanie MAE dla różnych głębokości drzewa ---")
@@ -48,7 +56,15 @@ def fuel_consumption_prediction(is_origin=0, split=0.2, random=42, test_depth=Fa
             mae = mean_absolute_error(y_test, y_pred)
             mae_results.append((str(depth), mae))
             print(f"max_depth = {depth}: MAE = {mae:.2f} L/100km")
-        print("-----------------------------------------------------")
+
+            # Ważność cech dla każdej głębokości
+            importances = dt.feature_importances_
+            feature_importance_df = pd.DataFrame({'Cecha': X.columns, 'Ważność': importances})
+            feature_importance_df = feature_importance_df.sort_values(by='Ważność', ascending=False)
+
+            # print(f"\n--- Ważność Cech dla max_depth={depth} ---")
+            # print(feature_importance_df)
+            # print("----------------------")
 
         # Wykres porównawczy MAE
         depth_labels = [d[0] for d in mae_results]
@@ -61,33 +77,50 @@ def fuel_consumption_prediction(is_origin=0, split=0.2, random=42, test_depth=Fa
         plt.ylabel('MAE [L/100km]')
         plt.show()
 
-    # Wizualizacja uproszczonego drzewa
-    plt.figure(figsize=(20, 10))
-    simple_tree = DecisionTreeRegressor(max_depth=3, random_state=random)
-    simple_tree.fit(X_train, y_train)
-    plot_tree(simple_tree, feature_names=X.columns, filled=True,
-              rounded=True, fontsize=10, precision=2)
-    plt.title("Wizualizacja drzewa decyzyjnego (max_depth=3)", fontsize=16)
-    plt.show()
+        print(f"Najmniejsze MAE: {min(mae_values):.2f} L/100km dla max_depth={depth_labels[mae_values.index(min(mae_values))]}")
 
-    # Ważność cech
-    final_tree = DecisionTreeRegressor(random_state=random)
-    final_tree.fit(X_train, y_train)
-    importances = final_tree.feature_importances_
-    feature_importance_df = pd.DataFrame({'Cecha': X.columns, 'Ważność': importances})
-    feature_importance_df = feature_importance_df.sort_values(by='Ważność', ascending=False)
+    else:
+        # Pojedynczy test z wybraną głębokością
+        print(f"\n--- Test pojedynczego modelu z max_depth={max_depth} ---")
 
-    plt.figure(figsize=(10, 6))
-    sns.barplot(x='Ważność', y='Cecha', data=feature_importance_df)
-    plt.title('Ważność cech w modelu predykcji spalania (L/100km)', fontsize=16)
-    plt.xlabel('Ważność')
-    plt.ylabel('Cecha')
-    plt.show()
+        # Model z wybraną głębokością
+        final_tree = DecisionTreeRegressor(max_depth=max_depth, random_state=random)
+        final_tree.fit(X_train, y_train)
 
-    print("\n--- Ważność Cech ---")
-    print(feature_importance_df)
-    print("----------------------")
+        # Predykcja i ocena
+        y_pred = final_tree.predict(X_test)
+        mae = mean_absolute_error(y_test, y_pred)
+        mse = mean_squared_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
 
+        print(f"MAE = {mae:.2f} L/100km")
+        print(f"MSE = {mse:.2f}")
+        print(f"R² = {r2:.3f}")
+
+        # Ważność cech
+        importances = final_tree.feature_importances_
+        feature_importance_df = pd.DataFrame({'Cecha': X.columns, 'Ważność': importances})
+        feature_importance_df = feature_importance_df.sort_values(by='Ważność', ascending=False)
+
+        plt.figure(figsize=(10, 6))
+        sns.barplot(x='Ważność', y='Cecha', data=feature_importance_df)
+        plt.title(f'Ważność cech w modelu predykcji spalania - max_depth={max_depth} ({origin_desc})', fontsize=16)
+        plt.xlabel('Ważność')
+        plt.ylabel('Cecha')
+        plt.show()
+
+        print("\n--- Ważność Cech ---")
+        print(feature_importance_df)
+        print("----------------------")
+
+        # Wizualizacja uproszczonego drzewa (zawsze max_depth=3 dla czytelności)
+        plt.figure(figsize=(20, 10))
+        simple_tree = DecisionTreeRegressor(max_depth=3, random_state=random)
+        simple_tree.fit(X_train, y_train)
+        plot_tree(simple_tree, feature_names=X.columns, filled=True,
+                  rounded=True, fontsize=10, precision=2)
+        plt.title("Wizualizacja drzewa decyzyjnego (max_depth=3)", fontsize=16)
+        plt.show()
 
 
 
@@ -95,29 +128,46 @@ def main():
     print("Prognozowanie spalania paliwa w samochodach (L/100km)")
     print("---------------------------------------------------")
     print("1. Usuń kolumnę 'origin'")
-    print("2. Użyj kodowania zmiennej 'origin' (One-Hot Encoding)")
-    choice = input("Wybierz opcję (1 lub 2): ")
+    print("2. Zostaw kolumnę 'origin' jako numeryczną (1=USA, 2=Europe, 3=Japan)")
+    print("3. Użyj kodowania zmiennej 'origin' (One-Hot Encoding)")
 
-    while choice not in ['1', '2']:
-        print("Nieprawidłowy wybór. Proszę wybrać 1 lub 2.")
-        choice = input("Wybierz opcję (1 lub 2): ")
+    choice = input("Wybierz opcję (1, 2 lub 3): ")
+    if choice not in ['1', '2', '3']:
+        print("Nieprawidłowy wybór. Używam domyślnej opcji 1.")
+        choice = '1'
 
     split = input("Podaj wartość podziału zbioru testowego (domyślnie 0.2): ")
     if split == '':
         split = 0.2
     else:
         split = float(split)
+
     random = input("Podaj wartość random_state (domyślnie 42): ")
     if random == '':
         random = 42
     else:
         random = int(random)
+
     test_depth = input("Czy chcesz przetestować różne głębokości drzewa? (tak/nie, domyślnie nie): ").strip().lower()
+
     if test_depth == 'tak':
-        test_depth = True
+        # Testowanie różnych głębokości
+        fuel_consumption_prediction(origin_option=int(choice) - 1, split=split, random=random, test_depth=True)
     else:
-        test_depth = False
-    fuel_consumption_prediction(is_origin=int(choice) - 1, split=split, random=random, test_depth=test_depth)
+        # Pojedynczy test
+        max_depth_input = input("Podaj maksymalną głębokość drzewa (domyślnie None - bez ograniczeń): ")
+        if max_depth_input == '':
+            max_depth = None
+        else:
+            max_depth = int(max_depth_input)
+
+        fuel_consumption_prediction(origin_option=int(choice) - 1, split=split, random=random,
+                                    test_depth=False, max_depth=max_depth)
+
 
 if __name__ == "__main__":
-    main()
+    # main()
+    test_training = [0.1, 0.2, 0.3]
+    for split in test_training:
+        print(f"\n--- Test z podziałem {split} ---")
+        fuel_consumption_prediction(origin_option=0, split=split, random=42, test_depth=True)
