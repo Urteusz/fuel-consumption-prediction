@@ -90,12 +90,8 @@ def fuel_consumption_prediction(origin_option=0, split=0.2, random=42, test_dept
         # Predykcja i ocena
         y_pred = final_tree.predict(X_test)
         mae = mean_absolute_error(y_test, y_pred)
-        mse = mean_squared_error(y_test, y_pred)
-        r2 = r2_score(y_test, y_pred)
 
         print(f"MAE = {mae:.2f} L/100km")
-        print(f"MSE = {mse:.2f}")
-        print(f"R² = {r2:.3f}")
 
         # Ważność cech
         importances = final_tree.feature_importances_
