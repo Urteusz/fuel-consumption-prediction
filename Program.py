@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeRegressor, plot_tree
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-def fuel_consumption_prediction(is_origin=0, split=0.2, random=42):
+def fuel_consumption_prediction(is_origin=0, split=0.2, random=42, test_depth=False):
     sns.set_style('whitegrid')
     plt.rcParams['figure.figsize'] = (12, 6)
 
@@ -35,30 +35,31 @@ def fuel_consumption_prediction(is_origin=0, split=0.2, random=42):
     print(f"\nRozmiar zbioru treningowego: {X_train.shape[0]} próbek")
     print(f"Rozmiar zbioru testowego: {X_test.shape[0]} próbek")
 
-    # Testowane głębokości
-    depths = [1, 2, 3, 5, 10, None]
-    mae_results = []
+    if test_depth:
+        # Testowane głębokości
+        depths = [1, 2, 3, 5, 10, None]
+        mae_results = []
 
-    print("\n--- Porównanie MAE dla różnych głębokości drzewa ---")
-    for depth in depths:
-        dt = DecisionTreeRegressor(max_depth=depth, random_state=random)
-        dt.fit(X_train, y_train)
-        y_pred = dt.predict(X_test)
-        mae = mean_absolute_error(y_test, y_pred)
-        mae_results.append((str(depth), mae))
-        print(f"max_depth = {depth}: MAE = {mae:.2f} L/100km")
-    print("-----------------------------------------------------")
+        print("\n--- Porównanie MAE dla różnych głębokości drzewa ---")
+        for depth in depths:
+            dt = DecisionTreeRegressor(max_depth=depth, random_state=random)
+            dt.fit(X_train, y_train)
+            y_pred = dt.predict(X_test)
+            mae = mean_absolute_error(y_test, y_pred)
+            mae_results.append((str(depth), mae))
+            print(f"max_depth = {depth}: MAE = {mae:.2f} L/100km")
+        print("-----------------------------------------------------")
 
-    # Wykres porównawczy MAE
-    depth_labels = [d[0] for d in mae_results]
-    mae_values = [d[1] for d in mae_results]
+        # Wykres porównawczy MAE
+        depth_labels = [d[0] for d in mae_results]
+        mae_values = [d[1] for d in mae_results]
 
-    plt.figure(figsize=(10, 6))
-    sns.barplot(x=depth_labels, y=mae_values)
-    plt.title('Porównanie MAE dla różnych głębokości drzewa decyzyjnego')
-    plt.xlabel('Maksymalna głębokość drzewa')
-    plt.ylabel('MAE [L/100km]')
-    plt.show()
+        plt.figure(figsize=(10, 6))
+        sns.barplot(x=depth_labels, y=mae_values)
+        plt.title('Porównanie MAE dla różnych głębokości drzewa decyzyjnego')
+        plt.xlabel('Maksymalna głębokość drzewa')
+        plt.ylabel('MAE [L/100km]')
+        plt.show()
 
     # Wizualizacja uproszczonego drzewa
     plt.figure(figsize=(20, 10))
@@ -111,7 +112,12 @@ def main():
         random = 42
     else:
         random = int(random)
-    fuel_consumption_prediction(is_origin=int(choice) - 1, split=split, random=random)
+    test_depth = input("Czy chcesz przetestować różne głębokości drzewa? (tak/nie, domyślnie nie): ").strip().lower()
+    if test_depth == 'tak':
+        test_depth = True
+    else:
+        test_depth = False
+    fuel_consumption_prediction(is_origin=int(choice) - 1, split=split, random=random, test_depth=test_depth)
 
 if __name__ == "__main__":
     main()
