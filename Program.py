@@ -54,18 +54,10 @@ def fuel_consumption_prediction(is_origin=0, split=0.2, random=42):
 
     # Obliczenie metryk
     mae = mean_absolute_error(y_test, y_pred)
-    mse = mean_squared_error(y_test, y_pred)
-    rmse = np.sqrt(mse)
-    r2 = r2_score(y_test, y_pred)
 
     print("\n--- Metryki Ewaluacji Modelu (Cel: L/100km) ---")
-    print(f"Mean Absolute Error (MAE): {mae:.2f} L/100km")
-    print(f"Root Mean Squared Error (RMSE): {rmse:.2f} L/100km")
-    print(f"Współczynnik R-squared (R²): {r2:.3f}")
+    print(f"Średni błąd bezwzględny (MAE): {mae:.2f} L/100km")
     print("-------------------------------------------------")
-    print("Interpretacja: Model myli się średnio o {:.2f} litra na 100 km.".format(mae))
-
-    # Wizualizacja i interpretacja
 
     # Wizualizacja drzewa (wersja uproszczona dla czytelności)
     plt.figure(figsize=(20, 10))
